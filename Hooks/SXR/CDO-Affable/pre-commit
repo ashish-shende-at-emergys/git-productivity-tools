@@ -1,0 +1,146 @@
+#!/bin/sh
+
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+BLUE='\033[0;34m'
+YELLOW='\033[0;33m'
+NC='\033[0m' # No Color
+TARGET_PROJECT=Ap.Cdo.Packages.BE.sln
+NUGET_SOURCE=https://api.nuget.org/v3/index.json
+
+
+printf "\n${YELLOW}----------------------------------------------------------------------------------${NC}"
+printf "\n\t\t\tRunning pre-commit checks${NC}"		
+printf "\n${YELLOW}----------------------------------------------------------------------------------${NC}"
+
+printf "\n${YELLOW}==================================================================================${NC}"
+printf "\n\t\t\tChecks for Creds                                                    ${NC}"
+printf "\n${YELLOW}==================================================================================${NC}"
+printf "\nRunning pre-commit Checks for Creds..."
+# Check for staged files
+staged_files=$(git diff --cached --name-only --diff-filter=ACMR)
+found_secrets=0
+# Array of keywords/patterns to search for (customize this list)
+sensitive_patterns=(
+    "API_KEY="
+    "SECRET_KEY="
+    "PASSWORD="
+    "ACCESS_TOKEN="
+    "AUTH_TOKEN="
+    "PRIVATE_KEY"
+    "client_secret"
+    "jwt_secret"
+    # Add more patterns as needed
+)
+
+# Function to scan a file for sensitive patterns
+
+scan_for_secrets() {
+    printf "Scaning for secrets/creds in  '$file'..."
+    local file="$1"
+    local pattern
+    local line_number=1
+	local number_of_secrets=0
+   
+	while IFS= read -r line; do
+		# printf "$line"
+		for pattern in "${sensitive_patterns[@]}"; do
+            if [[ "$line" == *"$pattern"* ]]; then
+               printf "\n${RED}ERROR: Potential secret found in '$file' on line $line_number: '$line'${NC}"
+			   #number_of_secrets =number_of_secrets + 1
+			   # Indicate a secret was found
+             fi
+			 line_number=$((line_number + 1))
+        done
+		
+	done < "$file"
+	
+	if [[ "$number_of_secrets" -gt 0 ]]; then
+		printf "\n${RED}Secret(s) found in the file [$file] at Line $line_number.${NC}"
+	else 
+		printf "\nNo secrets found in the file [$file]."
+	fi
+	
+    return $number_of_secrets # No secrets found in the file
+}
+#printf "Checking for secrets..."
+# Scan staged files for potential secrets
+
+ for file in $staged_files; do
+	# #printf "Checking File '$file' Started"
+    # if scan_for_secrets "$file"; then
+        # found_secrets=1
+    # fi
+    printf "\nChecking File $file Completed"
+ done
+printf "\nChecking for secrets completed..."
+
+
+printf "\n${YELLOW}=> Number of Secret/Creds Found: $found_secrets"
+
+if [ "$found_secrets" -gt 0 ]; then
+	printf "\n${YELLOW}--------------------------------------------------------------------------------${NC}"
+    printf "\nCred Scan Result"
+	printf "\n${YELLOW}--------------------------------------------------------------------------------${NC}"
+	printf "\nERROR: Potential secrets found in staged files. Please review and remove them before committing."
+	printf "\nCreds Check completed with Potential secrets found in changeset."
+	printf "\n${YELLOW}--------------------------------------------------------------------------------${NC}"
+    exit 1
+fi
+
+printf "\nCreds Check passed."
+
+
+printf "\n${YELLOW}==================================================================================${NC}"
+printf "\n\t\t\tRunning preliminary checks (e.g., build)...${NC}"
+printf "\n${YELLOW}==================================================================================${NC}\n\n"
+
+dotnet build ${TARGET_PROJECT} -clp:ErrorsOnly
+if [ $? -ne 0 ]; then
+    printf "\nBuild failed. Please fix the errors before committing."
+    exit 1
+fi
+
+printf "\nRunning preliminary check passed."
+
+
+
+printf "\n${YELLOW}==================================================================================${NC}"
+printf "\n\t\t\tRunning Packages Analysis${NC}"
+printf "\n${YELLOW}==================================================================================${NC}"
+
+printf "\nChecking for deprecated Packages...."
+
+dotnet list ${TARGET_PROJECT} package --deprecated --source ${NUGET_SOURCE}
+
+printf "\nChecking for vulnerable Packages...."
+
+dotnet list ${TARGET_PROJECT} package --vulnerable --source ${NUGET_SOURCE}
+
+printf "\nChecking for outdated Packages...."
+
+dotnet list ${TARGET_PROJECT} package --outdated --source ${NUGET_SOURCE}
+
+printf "\n${YELLOW}==================================================================================${NC}"
+printf "\n\t\t\tRunning static analysis${NC}"
+printf "\n${YELLOW}==================================================================================${NC}"
+
+printf "\nStatic Analysis using Microsoft.DevSkim.CLI.\n"
+
+printf "\nInstalling Microsoft.DevSkim.CLI.......\n"
+dotnet tool install --global Microsoft.CST.DevSkim.CLI 
+
+printf "\nRunning Microsoft.DevSkim.CLI analyzer\n"
+devskim analyze --source-code . --output-format sarif  --severity Critical 
+
+
+printf "\nStatic Analysis completed, Please check for vulnerabilities.\n"
+
+
+
+printf "\n${YELLOW}==================================================================================${NC}"
+printf "\n\t\t\tAll Pre-commit checks passed.${NC}"					 												
+printf "\n${YELLOW}==================================================================================${NC}"
+
+
+exit 0

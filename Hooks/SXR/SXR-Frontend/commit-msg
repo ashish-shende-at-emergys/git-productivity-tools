@@ -1,0 +1,62 @@
+#!/bin/sh
+#
+# An example hook script to check the commit log message.
+# Called by "git commit" with one argument, the name of the file
+# that has the commit message.  The hook should exit with non-zero
+# status after issuing an appropriate message if it wants to stop the
+# commit.  The hook is allowed to edit the commit message file.
+#
+# To enable this hook, rename this file to "commit-msg".
+
+# Uncomment the below to add a Signed-off-by line to the message.
+# Doing this in a hook is a bad idea in general, but the prepare-commit-msg
+# hook is more suited to it.
+#
+# SOB=$(git var GIT_AUTHOR_IDENT | sed -n 's/^\(.*>\).*$/Signed-off-by: \1/p')
+# grep -qs "^$SOB" "$1" || echo "$SOB" >> "$1"
+
+# This example catches duplicate Signed-off-by lines.
+
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+BLUE='\033[0;34m'
+YELLOW='\033[0;33m'
+NC='\033[0m' # No Color
+
+test "" = "$(grep '^Signed-off-by: ' "$1" |
+	 sort | uniq -c | sed -e '/^[ 	]*1[ 	]/d')" || {
+	echo >&2 Duplicate Signed-off-by lines.
+	exit 1
+}
+
+printf "\n\t\t\tValidating Commit Message"	
+printf "\n${YELLOW}==================================================================================${NC}"
+
+ 
+
+COMMIT_MSG_FILE=$1
+COMMIT_MSG=$(<"$COMMIT_MSG_FILE")
+printf "\nGit Commit Message: ${YELLOW}$COMMIT_MSG ${NC}\n"
+
+if ! echo "$COMMIT_MSG" | grep -Eq "^SXR-[0-9]{6}-[A-Za-z0-9_-]+ .+$"; then
+  printf "$\n{RED}ERROR: Invalid commit message format.${NC}\n"
+  printf "\nExpected format: SXR-{Card/PBI Number}-Component Task or Message"
+  printf "\nExamples:"
+  printf "\n\t${GREEN}SXR-123434-Frontend Fix login bug${NC}"
+  printf "\n\t${GREEN}SXR-567824-Backend Implement API endpoint${NC}"
+  printf "\n\t${GREEN}SXR-901223-Docs Update README${NC}"
+  
+  
+ 
+printf "\n=================================================================================="
+printf "\n${RED}  Git Commit message checks failed. Update Commit Message as per given Example.${NC}"					 												
+printf "\n=================================================================================="
+  exit 1
+fi
+
+printf "\n=================================================================================="
+printf "${GREEN} 			Git Commit message checks passed.	${NC}\n"					 												
+printf "\n=================================================================================="
+
+
+exit 0
