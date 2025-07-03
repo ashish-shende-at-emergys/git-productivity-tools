@@ -6,90 +6,78 @@ YELLOW='\033[0;33m'
 NC='\033[0m' # No Color
 TARGET_PROJECT=./Solutions/WebApi/WebApi.csproj
 NUGET_SOURCE=https://api.nuget.org/v3/index.json
-printf "\n${YELLOW}--------------------------------------------------------------------------------${NC}"
-printf "\n\t\t\tRunning pre-commit checks*${NC}"		
-printf "\n${YELLOW}--------------------------------------------------------------------------------${NC}"
-
-
-
-
-printf "\n${YELLOW}==================================================================================${NC}"
-printf "\n\t\tChecks for Creds                                                    "
-printf "\n${YELLOW}==================================================================================${NC}"
-printf "\nRunning pre-commit Checks for Creds..."
-# Check for staged files
+TOOLS_FOLDER="c:\\\tools"
+GITLEAK_PATH="c:\\tools\\gitleaks.exe"
+GITLEAK_DOWNLOAD_URL="https://github.com/gitleaks/gitleaks/releases"
 staged_files=$(git diff --cached --name-only --diff-filter=ACMR)
-found_secrets=0
-# Array of keywords/patterns to search for (customize this list)
-sensitive_patterns=(
-    "API_KEY="
-    "SECRET_KEY="
-    "PASSWORD="
-    "ACCESS_TOKEN="
-    "AUTH_TOKEN="
-    "PRIVATE_KEY"
-    "client_secret"
-    "jwt_secret"
-    # Add more patterns as needed
-)
 
-# Function to scan a file for sensitive patterns
+printf "\n${YELLOW}==================================================================================${NC}"
+printf "\n\t\t\tRunning pre-commit checks${NC}"		
+printf "\n${YELLOW}==================================================================================${NC}"
+printf "\n\t\t\tChecking Python folder ${NC}"		
+printf "\n${YELLOW}----------------------------------------------------------------------------------${NC}\n"
+PY_VER=$(py -3 -c "import sys; print(f'{sys.version_info.major}{sys.version_info.minor}')")
+CODESPELL_PATH="$APPDATA\\Python\\Python$PY_VER\\Scripts\\codespell.exe"
+printf "\n Python [Version:$PY_VER] Installed on System.\n"
+printf "\n${YELLOW}==================================================================================${NC}"
+printf "\n\t\t\tChecks for Spelling Mistakes                                                         ${NC}"
+printf "\n${YELLOW}==================================================================================${NC}"
 
-scan_for_secrets() {
-    printf "Scaning for secrets/creds in  '$file'..."
-    local file="$1"
-    local pattern
-    local line_number=1
-	local number_of_secrets=0
-   
-	while IFS= read -r line; do
-		# printf "$line"
-		for pattern in "${sensitive_patterns[@]}"; do
-            if [[ "$line" == *"$pattern"* ]]; then
-               printf "\n${RED}ERROR: Potential secret found in '$file' on line $line_number: '$line'"
-			   #number_of_secrets =number_of_secrets + 1
-			   # Indicate a secret was found
-             fi
-			 line_number=$((line_number + 1))
-        done
-		
-	done < "$file"
-	
-	if [[ "$number_of_secrets" -gt 0 ]]; then
-		printf "\nSecret(s) found in the file [$file] at Line $line_number"
-	else 
-		printf "\nNo secrets found in the file [$file]."
-	fi
-	
-    return $number_of_secrets # No secrets found in the file
-}
-#printf "\nChecking for secrets..."
-# Scan staged files for potential secrets
+printf "\nChecking codespell...\n"
 
- for file in $staged_files; do
-	# #printf "Checking File '$file' Started"
-    # if scan_for_secrets "$file"; then
-        # found_secrets=1
-    # fi
-    printf "\nChecking File $file Completed"
- done
-printf "\nChecking for secrets completed..."
-
-
-printf "\n=> Number of Secret/Creds Found: $found_secrets"
-
-if [ "$found_secrets" -gt 0 ]; then
-	printf "\n${YELLOW}-------------------------------------------------------------------------------${NC}"
-    printf "\nCred Scan Result${NC}"
-	printf "\n${YELLOW}-------------------------------------------------------------------------------${NC}"
-	printf "\nERROR: Potential secrets found in staged files. Please review and remove them before committing.${NC}"
-	printf "\nCreds Check completed with Potential secrets found in changeset.${NC}"
-	printf "\n${YELLOW}-------------------------------------------------------------------------------"
-    exit 1
+if [ -x "$CODESPELL_PATH" ]; then
+    printf "\n${GREEN} CodeSpell [Spelling Check Tool] installed on systems.${NC}\n"
+else
+    printf "\n${RED} CodeSpell [Spelling Check Tool] not installed on systems.${NC}\n"
+	printf "\n Installinng CodeSpell [Spelling Check Tool] on system...\n"
+    python.exe -m pip install --force-reinstall codespell
+	printf "\n----------------------------------------------------------------------------------${NC}"
 fi
 
-printf "\n\n${GREEN}Creds Check passed.${NC}"
 
+printf "\nRunning Spelling Mistakes Check on Staged files...\n"
+for file in $staged_files; do
+	printf "\nFile:${YELLOW}'$file'${NC}\n"
+	"$CODESPELL_PATH" --quiet-level=2 --check-hidden "$file"	
+	if [ $? -ne 0 ]; then
+	  printf "\n${RED} Spelling Mistakes found. Please fix before committing.${NC}"
+	  printf "\n----------------------------------------------------------------------------------${NC}"
+	fi
+done
+
+
+printf "\nSpelling Mistakes Scanning completed.\n\n"
+
+
+printf "\n${YELLOW}==================================================================================${NC}"
+printf "\n\tChecks for Creds/Tokens/Other potential confidential Information                     ${NC}"
+printf "\n${YELLOW}==================================================================================${NC}\n"
+
+
+if [ -x "$GITLEAK_PATH" ]; then
+    printf "\n${GREEN} gitleaks [Creds Check Tool] installed on systems.${NC}\n"
+else
+    printf "\n${RED} gitleaks [Creds Check Tool] not installed on systems.${NC}\n"
+	printf "\n----------------------------------------------------------------------------------${NC}"
+	printf "\n${BLUE}Follow below steps for gitleaks                     						${NC}"
+	printf "\n1. Download gitleaks from URL: ${GITLEAK_DOWNLOAD_URL}                     		${NC}"
+	printf "\n2. Extract gitleaks_x.yy.z_windows_x64                							${NC}"
+	printf "\n3. Copy Contents [gitleaks.exe] to ${TOOLS_FOLDER}			                    ${NC}"
+	printf "\n4. Run Commit Commans											                    ${NC}"
+	printf "\n----------------------------------------------------------------------------------${NC}"
+fi
+
+
+
+printf "\nRunning gitleaks on Staged files...\n"
+c:\\tools\\gitleaks detect --verbose --redact
+
+if [ $? -ne 0 ]; then
+  printf "\n${RED}gitleaks found potential secrets. Please fix before committing.${NC}\n"
+  #exit 1
+fi
+
+printf "\nSecrets [gitleaks] scanning completed.\n\n"
 
 printf "\n${YELLOW}==================================================================================${NC}"
 printf "\n\t\t\tRunning preliminary checks (e.g., build)...						${NC}"
