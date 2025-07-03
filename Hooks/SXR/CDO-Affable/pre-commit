@@ -11,13 +11,16 @@ NUGET_SOURCE=https://api.nuget.org/v3/index.json
 TOOLS_FOLDER="c:\\\tools"
 GITLEAK_PATH="c:\\tools\\gitleaks.exe"
 GITLEAK_DOWNLOAD_URL="https://github.com/gitleaks/gitleaks/releases/download/v8.27.2/gitleaks_8.27.2_windows_x64.zip"
-CODESPELL_PATH="$APPDATA/Python/Python313/Scripts/codespell.exe"
 staged_files=$(git diff --cached --name-only --diff-filter=ACMR)
 
-printf "\n${YELLOW}----------------------------------------------------------------------------------${NC}"
+printf "\n${YELLOW}==================================================================================${NC}"
 printf "\n\t\t\tRunning pre-commit checks${NC}"		
-printf "\n${YELLOW}----------------------------------------------------------------------------------${NC}"
-
+printf "\n${YELLOW}==================================================================================${NC}"
+printf "\n\t\t\tChecking Python folder ${NC}"		
+printf "\n${YELLOW}----------------------------------------------------------------------------------${NC}\n"
+PY_VER=$(py -3 -c "import sys; print(f'{sys.version_info.major}{sys.version_info.minor}')")
+CODESPELL_PATH="$APPDATA\\Python\\Python$PY_VER\\Scripts\\codespell.exe"
+printf "\n Python [Version:$PY_VER] Installed on System.\n"
 printf "\n${YELLOW}==================================================================================${NC}"
 printf "\n\t\t\tChecks for Spelling Mistakes                                                         ${NC}"
 printf "\n${YELLOW}==================================================================================${NC}"
