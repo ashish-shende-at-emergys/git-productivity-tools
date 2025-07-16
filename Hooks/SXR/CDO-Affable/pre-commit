@@ -86,7 +86,7 @@ printf "\n${YELLOW}=============================================================
 printf "\n\t\t\tRunning preliminary checks (e.g., build)...${NC}"
 printf "\n${YELLOW}==================================================================================${NC}\n\n"
 
-dotnet build ${TARGET_PROJECT} -clp:ErrorsOnly
+dotnet build ${TARGET_PROJECT} -clp:ErrorsOnly --no-incremental
 if [ $? -ne 0 ]; then
     printf "\nBuild failed. Please fix the errors before committing."
     exit 1
@@ -111,19 +111,32 @@ printf "\nChecking for outdated Packages...."
 dotnet list ${TARGET_PROJECT} package --outdated --source ${NUGET_SOURCE}
 
 printf "\n${YELLOW}==================================================================================${NC}"
-printf "\n\t\t\tRunning static analysis${NC}"
+printf "\n\t\t\tRunning static analysis 			                                                 ${NC}"
 printf "\n${YELLOW}==================================================================================${NC}"
+
+#printf "\nRunningStatic Analysis using Locally Hosted SonarQube."
+#Powershell ./sonar-scan.bat
+
 
 printf "\nStatic Analysis using Microsoft.DevSkim.CLI.\n"
 
 printf "\nInstalling Microsoft.DevSkim.CLI.......\n"
 dotnet tool install --global Microsoft.CST.DevSkim.CLI 
 
-printf "\nRunning Microsoft.DevSkim.CLI analyzer\n"
-devskim analyze --source-code . --output-format sarif  --severity Critical 
+printf "\nRunning Microsoft.DevSkim.CLI analyzer"
+
+timestamp=$(date +"%Y%m%d_%H%M%S")
+log_file="DevSkim_$timestamp.log"
 
 
-printf "\nStatic Analysis completed, Please check for vulnerabilities.\n"
+
+printf "\n${YELLOW}-------------------------------------------------------------------------------${NC}"
+printf "\nSAST: Microsoft.DevSkim Scan results available in $log_file${NC}"
+printf "\n${YELLOW}-------------------------------------------------------------------------------${NC}"
+
+devskim analyze --source-code . --output-format sarif --severity Critical > "$log_file"
+
+printf "\nStatic Analysis completed, Please check for vulnerabilities."
 
 
 
