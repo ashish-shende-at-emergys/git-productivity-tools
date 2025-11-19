@@ -1,0 +1,92 @@
+#!/bin/sh
+
+# Create timestamp
+timestamp=$(date +"%Y%m%d_%H%M%S")
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+BLUE='\033[0;34m'
+YELLOW='\033[0;33m'
+NC='\033[0m' # No Color
+printf "\n${YELLOW}================================================================================${NC}"
+printf "\n                          Running pre-commit checks "
+printf "\n                                $timestamp ${NC}"		
+printf "\n${YELLOW}================================================================================${NC}"
+
+
+
+printf "\n--------------------------------------------------------------------------------${NC}"
+printf "\n 1️ Checks for Creds "
+printf "\n--------------------------------------------------------------------------------${NC}"
+
+printf "\nRunning pre-commit Checks for Creds..."
+
+# Check for staged files
+staged_files=$(git diff --cached --name-only --diff-filter=ACMR)
+found_secrets=0
+
+patterns='API_KEY|SECRET_KEY|PASSWORD|TOKEN|PRIVATE_KEY|client_secret|jwt_secret'
+
+for file in $staged_files; do
+    if grep -En "$patterns" "$file" > /dev/null 2>&1; then
+        printf "${RED}❌ Potential secret found in $file${NC}\n"
+        grep -En "$patterns" "$file"
+        found_secrets=1
+    fi
+done
+
+if [ $found_secrets -eq 1 ]; then
+    printf "\n-------------------------------------------------------------------------------${NC}"
+    printf "\nCred Scan Result"
+	printf "\n-------------------------------------------------------------------------------${NC}"
+	printf "\nERROR: Potential secrets found in staged files. Please review and remove them before committing."
+	printf "\nCreds Check completed with Potential secrets found in changeset."
+	printf "\n-------------------------------------------------------------------------------${NC}"
+    exit 1
+fi
+printf "\n---------------------------------------------------------------------------------${NC}"
+printf "\n${GREEN}No secrets found.${NC}"
+printf "\n${GREEN}Creds Check passed..${NC}"
+printf "\n-------------------------------------------------------------------------------${NC}"
+
+
+
+printf "\n--------------------------------------------------------------------------------${NC}"
+printf "\n 2 Running preliminary checks (e.g., build)...	 "
+printf "\n--------------------------------------------------------------------------------${NC}"
+
+printf "\nBuilding Application.\n\n"
+
+npm  rebuild 
+if [ $? -ne 0 ]; then
+    printf "\n${RED}Build failed. Please fix the errors before committing.${NC}"
+    exit 1
+fi
+
+printf "\nRunning preliminary check passed."
+
+# printf "\nInstalling eslint-plugin-security....."
+# printf "\nInstalling eslint-plugin-security....."
+# npm install eslint eslint-plugin-security --save-dev
+
+# printf "\n--------------------------------------------------------------------------------${NC}"
+# printf "\nRunning Scan through eslint-plugin-security....."
+# printf "\n--------------------------------------------------------------------------------${NC}"
+
+# npx eslint ./src
+
+
+printf "\n--------------------------------------------------------------------------------${NC}"
+printf "\n 3 Running static analysis using NPM Audit....."
+printf "\n--------------------------------------------------------------------------------${NC}"
+
+npm audit
+
+printf "\nStatic Analysis completed, Please check for vulnerabilities."
+
+
+#printf "\n${YELLOW}================================================================================${NC}"
+printf  "\n\n\n	${GREEN}		All Pre-commit checks passed.	\n\n\n"					 												
+#printf "\n${YELLOW}================================================================================${NC}"
+
+
+exit 0

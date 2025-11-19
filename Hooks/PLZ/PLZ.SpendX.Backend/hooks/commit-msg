@@ -1,0 +1,172 @@
+#!/bin/sh
+#
+# An example hook script to check the commit log message.
+# Called by "git commit" with one argument, the name of the file
+# that has the commit message.  The hook should exit with non-zero
+# status after issuing an appropriate message if it wants to stop the
+# commit.  The hook is allowed to edit the commit message file.
+#
+# To enable this hook, rename this file to "commit-msg".
+
+# Uncomment the below to add a Signed-off-by line to the message.
+# Doing this in a hook is a bad idea in general, but the prepare-commit-msg
+# hook is more suited to it.
+#
+# SOB=$(git var GIT_AUTHOR_IDENT | sed -n 's/^\(.*>\).*$/Signed-off-by: \1/p')
+# grep -qs "^$SOB" "$1" || echo "$SOB" >> "$1"
+
+# This example catches duplicate Signed-off-by lines.
+#!/bin/bash
+
+
+#!/bin/bash
+# ---------------------------------------------
+# Constants
+# ---------------------------------------------
+ALLOWED_MIN_LENGTH=24
+ALLOWED_MAX_LENGTH=120
+
+
+# ---------------------------------------------
+# Colors
+# ---------------------------------------------
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+BLUE='\033[0;34m'
+YELLOW='\033[0;33m'
+NC='\033[0m'
+
+COMMIT_MSG_FILE="$1"
+COMMIT_MSG=$(<"$COMMIT_MSG_FILE")
+
+printf "\n${YELLOW}================================================================================${NC}"
+printf "\n${GREEN}		Validating Commit Message.								"					 												
+printf "\n${YELLOW}================================================================================${NC}"
+
+
+printf "\n--------------------------------------------------------------------------------${NC}"
+printf "\n 1️ Check for duplicate \"Signed-off-by\""
+printf "\n--------------------------------------------------------------------------------${NC}"
+
+DUPLICATE=$(grep '^Signed-off-by: ' "$COMMIT_MSG_FILE" | sort | uniq -d)
+if [[ -n "$DUPLICATE" ]]; then
+    echo -e "${RED}ERROR: Duplicate Signed-off-by lines found.${NC}"
+    exit 1
+fi
+
+printf "\n--------------------------------------------------------------------------------${NC}"
+printf "\n 2️ Validate message format: PLZ-123456-Module Message"
+printf "\n--------------------------------------------------------------------------------${NC}"
+
+# ---------------------------------------------
+# 
+# ---------------------------------------------
+COMMIT_REGEX="^PLZ-[0-9]{6}-[A-Za-z0-9_-]+ .+$"
+
+if ! grep -Eq "$COMMIT_REGEX" <<< "$COMMIT_MSG"; then
+    echo -e "\n${RED}ERROR: Invalid commit message format.${NC}"
+    echo -e "\n${BLUE}Expected:${NC} PLZ-123456-Module Message"
+    echo -e "\n${GREEN}Example:${NC} PLZ-123434-Backend Fix login bug"
+    exit 1
+fi
+
+printf "\n--------------------------------------------------------------------------------${NC}"
+printf "\n 3️ Enforce min (24) & max (120) character title"
+
+ 
+TITLE=$(head -n 1 "$COMMIT_MSG_FILE")
+TITLE_LENGTH=${#TITLE}
+
+printf "\n\n${YELLOW}	=> Checking Min (${ALLOWED_MIN_LENGTH}) length.${NC}"
+
+if (( TITLE_LENGTH < ALLOWED_MIN_LENGTH )); then
+    echo -e "\n\n${RED}	=>ERROR: Commit title should have minimum (${ALLOWED_MIN_LENGTH}) characters (${TITLE_LENGTH}).${NC}"
+    echo -e "\n${BLUE}	=>Title:${NC} $TITLE${NC}"
+
+    # Auto-suggest a shorter title
+    SUGGESTED=$(echo "$TITLE" | cut -c1-24 | sed 's/ *$//')
+    
+    echo -e "\n	=>${RED}Please update the title.${NC}"
+    exit 1
+fi
+printf "\n${YELLOW}	=> Checking Max (${ALLOWED_MAX_LENGTH}) length.${NC}"
+
+if (( TITLE_LENGTH > ALLOWED_MAX_LENGTH )); then
+    echo -e "\n${RED}ERROR: Commit title exceeds 120 characters (${TITLE_LENGTH}).${NC}"
+    echo -e "\n${BLUE}Title:${NC} $TITLE"
+
+    # Auto-suggest a shorter title
+    SUGGESTED=$(echo "$TITLE" | cut -c1-120 | sed 's/ *$//')
+    echo -e "\n${YELLOW}Suggested shorter title:${NC}"
+    echo -e "\n${GREEN}$SUGGESTED${NC}"
+    
+    echo -e "\n${RED}Please shorten the title manually.${NC}"
+    exit 1
+fi
+printf "\n${GREEN}	=> Commit message length check passed.${NC}"
+printf "\n--------------------------------------------------------------------------------${NC}"
+
+
+printf "\n--------------------------------------------------------------------------------${NC}"
+printf "\n 4️ Enforce empty line between title & body"
+printf "\n--------------------------------------------------------------------------------${NC}"
+
+LINE2=$(sed -n '2p' "$COMMIT_MSG_FILE")
+
+if [[ -n "$LINE2" ]]; then
+    echo -e "\n${RED}ERROR: Missing empty line between title and message body.${NC}"
+    echo -e "\n${BLUE}Fix:${NC} Add a blank line after the first line:"
+    echo
+    echo -e "\n${GREEN}$TITLE${NC}"
+    echo -e "(blank line required)"
+    exit 1
+fi
+
+
+printf "\n--------------------------------------------------------------------------------${NC}"
+printf "\n 5️ Auto-fix spelling using codespell"
+printf "\n--------------------------------------------------------------------------------${NC}"
+
+if [[ "$ENABLE_CODESPELL" == true ]]; then
+    if command -v codespell >/dev/null 2>&1; then
+
+        echo -e "\n${BLUE}Running codespell (auto-fix mode)...${NC}"
+        cp "$COMMIT_MSG_FILE" "${COMMIT_MSG_FILE}.bak"
+
+        # Auto-correct commit message spelling
+        codespell --write-changes "$COMMIT_MSG_FILE"
+
+        # Check if changes happened
+        if ! diff -q "$COMMIT_MSG_FILE" "${COMMIT_MSG_FILE}.bak" >/dev/null; then
+            echo -e "\n${GREEN}Codespell corrected spelling in commit message.${NC}"
+        fi
+
+        rm -f "${COMMIT_MSG_FILE}.bak"
+    fi
+fi
+
+# ---------------------------------------------
+# 6️ Forbidden words check
+# ---------------------------------------------
+FORBIDDEN=("dummy" "temp" "wip" "shit" "temporary" "hack" "remove later" "quick fix")
+FOUND=()
+
+for word in "${FORBIDDEN[@]}"; do
+    if grep -iEq "\\b$word\\b" <<< "$COMMIT_MSG"; then
+        FOUND+=("$word")
+    fi
+done
+
+if (( ${#FOUND[@]} > 0 )); then
+    echo -e "\n${RED}ERROR: Forbidden words found in commit message:${NC}"
+    for w in "${FOUND[@]}"; do echo -e " - ${RED}$w${NC}"; done
+    exit 1
+fi
+
+
+# ---------------------------------------------
+# SUCCESS
+# ---------------------------------------------
+echo -e "\n${GREEN}All commit-message checks passed successfully!${NC}"
+echo -e "\n{YELLOW}==================================================================${NC}"
+exit 0

@@ -88,7 +88,7 @@ printf "\n${YELLOW}=============================================================
  
 
 printf "\nBuilding Web Project [AP.QuickStrike.Web]."
-dotnet build ${TARGET_PROJECT} -clp:ErrorsOnly
+dotnet build ${TARGET_PROJECT} -clp:ErrorsOnly --no-incremental
 if [ $? -ne 0 ]; then
     printf "\nBuild failed. Please fix the errors before committing."
     exit 1
@@ -114,10 +114,10 @@ printf "\nChecking for outdated Packages...."
 dotnet list ${TARGET_PROJECT}  package --outdated  
 
 printf "\n${YELLOW}==================================================================================${NC}"
-printf "\n\t\t\tRunning static analysis 			           "
+printf "\n\t\t\tRunning static analysis 			                                                      "
 printf "\n${YELLOW}==================================================================================${NC}"
 
-printf "\nStatic Analysis using Microsoft.DevSkim.CLI."
+printf "\nStatic Analysis using Microsoft.DevSkim.CLI.\n"
 
 printf "\nInstalling Microsoft.DevSkim.CLI.......\n"
 dotnet tool install --global Microsoft.CST.DevSkim.CLI 
@@ -138,7 +138,7 @@ printf "\nStatic Analysis completed, Please check for vulnerabilities."
 
 
 printf "\n${YELLOW}==================================================================================${NC}"
-printf "\n\t\t\tAll Pre-commit checks passed.	${NC}"					 												
+printf "\n\t\t\tAll Pre-commit checks passed.	                                                     ${NC}"
 printf "\n${YELLOW}==================================================================================${NC}"
 
 

@@ -1,0 +1,190 @@
+#!/bin/sh
+
+# Create timestamp
+timestamp=$(date +"%Y%m%d_%H%M%S")
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+BLUE='\033[0;34m'
+YELLOW='\033[0;33m'
+NC='\033[0m' # No Color
+printf "\n${YELLOW}---------------------------------------------------------------------------------${NC}"
+printf "\n                          Running pre-commit checks "
+printf "\n                                $timestamp ${NC}"		
+printf "\n${YELLOW}---------------------------------------------------------------------------------${NC}"
+
+
+
+
+printf "\n${YELLOW}==================================================================================${NC}"
+printf "\n\t\t\tChecks for Creds                                                    ${NC}"
+printf "\n${YELLOW}==================================================================================${NC}"
+printf "\nRunning pre-commit Checks for Creds..."
+
+# Check for staged files
+staged_files=$(git diff --cached --name-only --diff-filter=ACMR)
+found_secrets=0
+# Array of keywords/patterns to search for (customize this list)
+sensitive_patterns=(
+    "API_KEY="
+    "SECRET_KEY="
+    "PASSWORD="
+    "ACCESS_TOKEN="
+    "AUTH_TOKEN="
+    "PRIVATE_KEY"
+    "client_secret"
+    "jwt_secret"
+    # Add more patterns as needed
+)
+
+# Function to scan a file for sensitive patterns
+
+scan_for_secrets() {
+    printf "\nScaning for secrets/creds in  '$file'..."
+    local file="$1"
+    local pattern
+    local line_number=1
+	local number_of_secrets=0
+   
+	while IFS= read -r line; do
+		# printf "$line"
+		for pattern in "${sensitive_patterns[@]}"; do
+            if [[ "$line" == *"$pattern"* ]]; then
+               printf "\nERROR: Potential secret found in '$file' on line $line_number: '$line'"
+			   #number_of_secrets =number_of_secrets + 1
+			   # Indicate a secret was found
+             fi
+			 line_number=$((line_number + 1))
+        done
+		
+	done < "$file"
+	
+	if [[ "$number_of_secrets" -gt 0 ]]; then
+		printf "\nSecret(s) found in the file [$file] at Line $line_number"
+	else 
+		printf "\nNo secrets found in the file [$file]."
+	fi
+	
+    return $number_of_secrets # No secrets found in the file
+}
+#printf "Checking for secrets..."
+# Scan staged files for potential secrets
+
+ for file in $staged_files; do
+	# #printf "Checking File '$file' Started"
+    # if scan_for_secrets "$file"; then
+        # found_secrets=1
+    # fi
+    printf "\nChecking File $file Completed"
+ done
+printf "\nChecking for secrets completed..."
+
+
+printf "\n=> Number of Secret/Creds Found: $found_secrets"
+
+if [ "$found_secrets" -gt 0 ]; then
+	printf "\n-------------------------------------------------------------------------------${NC}"
+    printf "\nCred Scan Result"
+	printf "\n-------------------------------------------------------------------------------${NC}"
+	printf "\nERROR: Potential secrets found in staged files. Please review and remove them before committing."
+	printf "\nCreds Check completed with Potential secrets found in changeset."
+	printf "\n-------------------------------------------------------------------------------${NC}"
+    exit 1
+fi
+
+printf "\nCreds Check passed."
+
+
+printf "\n${YELLOW}==================================================================================${NC}"
+printf "\n			Running preliminary checks (e.g., build)...						"
+printf "\n${YELLOW}==================================================================================${NC}"
+
+#npm run build 
+if [ $? -ne 0 ]; then
+    printf "\n${RED}Build failed. Please fix the errors before committing."
+    exit 1
+fi
+
+printf "\nRunning preliminary check passed."
+
+
+
+printf "\n${YELLOW}==================================================================================${NC}"
+printf "\n			Running static analysis 			           "
+printf "\n${YELLOW}==================================================================================${NC}"
+
+#printf "\nInstalling eslint-plugin-security....."
+#printf "\nInstalling eslint-plugin-security....."
+#npm install eslint eslint-plugin-security --save-dev
+
+printf "\n--------------------------------------------------------------------------------${NC}"
+printf "\nRunning Scan through eslint-plugin-security....."
+printf "\n--------------------------------------------------------------------------------${NC}"
+
+npx eslint ./src
+
+#printf "\n--------------------------------------------------------------------------------${NC}"
+#printf "\nInstalling Python-based Node.js [nodejsscan] SAST scanner....."
+#printf "\n--------------------------------------------------------------------------------${NC}"
+#pip install nodejsscan
+
+
+# printf "\n--------------------------------------------------------------------------------${NC}"
+# printf "\nRunning Python-based Node.js [nodejsscan] SAST scanner....."
+# printf "\n--------------------------------------------------------------------------------${NC}"
+
+# if ! python3.11 -m nodejsscan --help &> /dev/null; then
+  # printf "\nNodeJsScan not found. Installing..."
+  # pip install nodejsscan || {
+    # printf "\nFailed to install nodejsscan."
+  # }
+# fi
+
+# #python -m nodejsscan -d . -o "nodejsscan_report_$timestamp.html"
+
+
+
+# if [ $? -ne 0 ]; then
+  # printf "\nNodeJsScan encountered issues. Reports available in nodejsscan_report_$timestamp.html"
+# else
+  # printf "\nNodeJsScan completed."
+# fi
+
+# printf "\n--------------------------------------------------------------------------------${NC}"
+# printf "\nRunning Python-based Node.js [Semgrep ] SAST scanner....."
+# printf "\n--------------------------------------------------------------------------------${NC}"
+
+# report="semgrep_report_$timestamp.sarif"
+
+# # Install semgrep if not found
+# if ! command -v semgrep &> /dev/null; then
+  # printf "\nSemgrep not found. Installing it via pip..."
+  # pip install semgrep || {
+    # printf "\n Failed to install Semgrep."
+  # }
+# fi
+
+# if ! command -v semgrep &> /dev/null; then
+	# # Run semgrep scan with OWASP Top 10 config
+	# semgrep scan --config p/owasp-top-ten --exclude node_modules --exclude dist --format sarif --output "$report" --format sarif
+
+	# if [ $? -ne 0 ]; then
+	  # printf "\nSemgrep found security issues. Report: $report"
+	# else
+	  # printf "\nSemgrep passed. Report saved as $report"
+	# fi
+# fi
+printf "\n--------------------------------------------------------------------------------${NC}"
+printf "\nRunning NPM Audit....."
+printf "\n--------------------------------------------------------------------------------${NC}"
+
+npm audit
+
+printf "\nStatic Analysis completed, Please check for vulnerabilities."
+
+
+printf "\n${YELLOW}==================================================================================${NC}"
+printf "\n	${GREEN}		All Pre-commit checks passed.	"					 												
+printf "\n${YELLOW}==================================================================================${NC}"
+
+
+exit 0
