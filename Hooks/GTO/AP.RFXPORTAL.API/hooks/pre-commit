@@ -13,8 +13,6 @@ printf "\n                                $timestamp ${NC}"
 printf "\n${YELLOW}---------------------------------------------------------------------------------${NC}"
 
 
-
-
 printf "\n${YELLOW}==================================================================================${NC}"
 printf "\n\t\t\tChecks for Creds                                                    ${NC}"
 printf "\n${YELLOW}==================================================================================${NC}"
@@ -98,7 +96,7 @@ printf "\n${YELLOW}=============================================================
 printf "\n			Running preliminary checks (e.g., build)...						"
 printf "\n${YELLOW}==================================================================================${NC}"
 
-#npm run build 
+npm run build 
 if [ $? -ne 0 ]; then
     printf "\n${RED}Build failed. Please fix the errors before committing."
     exit 1
@@ -140,8 +138,6 @@ npx eslint ./src
 # fi
 
 # #python -m nodejsscan -d . -o "nodejsscan_report_$timestamp.html"
-
-
 
 # if [ $? -ne 0 ]; then
   # printf "\nNodeJsScan encountered issues. Reports available in nodejsscan_report_$timestamp.html"

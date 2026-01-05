@@ -98,7 +98,7 @@ printf "\n${YELLOW}=============================================================
 printf "\n			Running preliminary checks (e.g., build)...						"
 printf "\n${YELLOW}==================================================================================${NC}"
 
-#npm run build 
+npm run build 
 if [ $? -ne 0 ]; then
     printf "\n${RED}Build failed. Please fix the errors before committing."
     exit 1
